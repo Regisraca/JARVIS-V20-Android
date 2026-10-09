@@ -124,6 +124,37 @@ class NativeAiActivity : Activity() {
                 setOnClickListener { showProviderForm(provider) }
             })
             buttons.addView(Button(this).apply {
+                text = "Testar"
+                setOnClickListener {
+                    isEnabled = false
+                    val button = this
+                    thread(name = "jarvis-provider-test") {
+                        val result = try {
+                            val key = vault.readForNativeRequest(provider.id)
+                                ?: throw IllegalStateException("Chave não cadastrada")
+                            AiProviderNetwork.complete(provider, key, listOf("user" to "Responda apenas: OK"))
+                            "Conexão confirmada: ${provider.name}"
+                        } catch (e: Exception) {
+                            "Falha em ${provider.name}: ${e.message ?: "erro desconhecido"}"
+                        }
+                        runOnUiThread {
+                            button.isEnabled = true
+                            AlertDialog.Builder(this@NativeAiActivity)
+                                .setTitle("Teste de API")
+                                .setMessage(result)
+                                .setPositiveButton("OK", null).show()
+                        }
+                    }
+                }
+            })
+            buttons.addView(Button(this).apply {
+                text = if (provider.enabled) "Pausar" else "Ativar"
+                setOnClickListener {
+                    registry.save(provider.copy(enabled = !provider.enabled))
+                    showSettings()
+                }
+            })
+            buttons.addView(Button(this).apply {
                 text = "↑"
                 isEnabled = index > 0
                 setOnClickListener {
