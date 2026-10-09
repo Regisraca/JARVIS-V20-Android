@@ -17,8 +17,8 @@ As credenciais são cifradas em repouso pelo Android Keystore (AES-GCM), não fi
 - O chat **nativo** usa requisições HTTPS diretamente aos provedores, com fallback e indicação da IA que respondeu. Isso exige conexão com a internet e uma chave válida.
 - Não foi adicionada integração das APIs pessoais ao chat **web/voz**. A interface web usa o backend existente.
 - A função **Interface web** continua carregando a URL HTTPS especificada em `app/src/main/res/values/strings.xml`. A UI remota precisa estar disponível.
-- A bolha flutuante e as ações de telefone da interface web continuam com suas limitações anteriores; o Phone Bridge Termux não foi removido.
-- O chat nativo oferece ditado por voz (quando há um reconhecedor instalado) e leitura de respostas por TextToSpeech. Ainda não há modo de escuta contínua, palavra de ativação, nem execução de ações do telefone pela nova tela.
+- A bolha flutuante e as ações avançadas de telefone da interface web continuam com suas limitações anteriores; o Phone Bridge Termux não foi removido. Comandos locais suportados na tela nativa não requerem Termux.
+- O chat nativo oferece ditado por voz (quando há um reconhecedor instalado) e leitura de respostas por TextToSpeech. Ainda não há modo de escuta contínua ou palavra de ativação. A nova tela executa um conjunto pequeno de comandos locais **explicitamente digitados ou ditados pelo usuário**: bateria, copiar texto, abrir configurações/Wi-Fi/Bluetooth e abrir destinos conhecidos (YouTube, Google, Maps, WhatsApp, Spotify). O modelo não pode executar comandos arbitrários nem enviar mensagens automaticamente.
 - Requisições aos provedores podem consumir créditos pagos.
 - Confirme os termos de segurança e uso de cada provedor antes de inserir uma chave.
 - Essa implementação ainda requer **build CI e teste real em Android**. Não declare o APK pronto para distribuição sem essa validação.
