@@ -113,7 +113,7 @@ class NativeAiActivity : Activity() {
         // Only explicit user-entered commands can trigger local Android actions.
         NativeDeviceActions.execute(this, text)?.let { result ->
             question.setText("")
-            transcript.append("\\n\\nVocê: $text\\n\\nJ.A.R.V.I.S.: $result")
+            transcript.append("\n\nVocê: $text\n\nJ.A.R.V.I.S.: $result")
             if (voiceEnabled) speaker?.speak(result, TextToSpeech.QUEUE_FLUSH, null, "jarvis-device-result")
             return
         }
