@@ -1,0 +1,6 @@
+{
+  "functions": {
+    "api/search.mjs": { "maxDuration": 30 },
+    "api/chat.mjs": { "maxDuration": 30 }
+  }
+}

@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">J.A.R.V.I.S.</string>
+    <!-- Configure com a URL HTTPS real do deploy antes de gerar o APK. -->
+    <string name="jarvis_web_url">https://jarvis-v20-fase5-corrigido.vercel.app/</string>
+</resources>

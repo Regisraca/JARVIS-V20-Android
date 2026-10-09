@@ -1,0 +1,46 @@
+{
+  "name": "jarvis",
+  "private": true,
+  "version": "20.0.0",
+  "description": "J.A.R.V.I.S. — assistente de voz com pesquisa web gratuita e respostas baseadas em fontes reais.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "vite build",
+    "lint": "oxlint",
+    "test": "npm run test:server",
+    "preview": "vite preview",
+    "prebuild": "node scripts/vendor.mjs",
+    "dev:web": "vite",
+    "dev:api": "node server/dev.mjs",
+    "test:server": "node scripts/selftest.mjs"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^1.0.1",
+    "@react-three/fiber": "^9.7.0",
+    "@react-three/postprocessing": "^3.0.4",
+    "dompurify": "^3.4.12",
+    "framer-motion": "^12.43.0",
+    "kokoro-js": "^1.2.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "three": "^0.185.1",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@types/dompurify": "^3.0.5",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.185.3",
+    "@vitejs/plugin-react": "^6.0.4",
+    "oxlint": "^1.75.0",
+    "tsx": "^4.23.1",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.0"
+  }
+}
