@@ -1,0 +1,210 @@
+package com.jarvis.resident
+
+import android.app.Activity
+import android.app.AlertDialog
+import android.os.Bundle
+import android.text.InputType
+import android.view.View
+import android.widget.*
+import java.util.UUID
+import kotlin.concurrent.thread
+
+/**
+ * Fully native provider setup + text chat.
+ * Hosted WebView JavaScript never receives stored API keys.
+ */
+class NativeAiActivity : Activity() {
+    private lateinit var registry: AiProviderRegistry
+    private lateinit var vault: ProviderCredentialVault
+    private lateinit var root: LinearLayout
+    private lateinit var transcript: TextView
+    private lateinit var question: EditText
+    private lateinit var send: Button
+    private val history = mutableListOf<Pair<String, String>>()
+
+    private fun container() = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(24, 18, 24, 18)
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        registry = AiProviderRegistry(this)
+        vault = ProviderCredentialVault(this)
+        root = container()
+        val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        header.addView(Button(this).apply {
+            text = "APIs"
+            setOnClickListener { showSettings() }
+        })
+        header.addView(Button(this).apply {
+            text = "Nova conversa"
+            setOnClickListener { history.clear(); transcript.text = "Como posso ajudar?" }
+        })
+        header.addView(Button(this).apply {
+            text = "Voltar"
+            setOnClickListener { finish() }
+        })
+        root.addView(header)
+
+        transcript = TextView(this).apply {
+            textSize = 16f
+            text = "J.A.R.V.I.S. — IA no Android\nConfigure uma ou mais APIs em 'APIs' para começar."
+            setTextIsSelectable(true)
+            setPadding(8, 12, 8, 12)
+        }
+        val scroll = ScrollView(this).apply { addView(transcript) }
+        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        question = EditText(this).apply {
+            hint = "Escreva uma mensagem"
+            minLines = 2
+            maxLines = 5
+        }
+        root.addView(question)
+        send = Button(this).apply {
+            text = "Enviar"
+            setOnClickListener { sendMessage() }
+        }
+        root.addView(send)
+        setContentView(root)
+        if (registry.all().isEmpty()) showSettings()
+    }
+
+    private fun sendMessage() {
+        val text = question.text.toString().trim()
+        if (text.isEmpty()) return
+        question.setText("")
+        history.add("user" to text)
+        transcript.append("\n\nVocê: $text\n\nJ.A.R.V.I.S.: pensando…")
+        send.isEnabled = false
+        val snapshot = history.takeLast(20).toList()
+        thread(name = "jarvis-native-ai") {
+            val answer = try {
+                Result.success(AiProviderRouter(registry, vault).ask(snapshot))
+            } catch (e: Exception) {
+                Result.failure<AiAnswer>(e)
+            }
+            runOnUiThread {
+                send.isEnabled = true
+                val old = transcript.text.toString().removeSuffix("pensando…")
+                answer.fold(
+                    onSuccess = { result ->
+                        history.add("assistant" to result.text)
+                        transcript.text = old + result.text +
+                            "\n\n[Via ${result.provider} • ${result.model}" +
+                            (if (result.attempted > 1) " • fallback após ${result.attempted - 1} falha(s)" else "") + "]"
+                    },
+                    onFailure = { e ->
+                        // Failed turns must not become assistant context.
+                        transcript.text = old + "Não foi possível responder: ${e.message}"
+                    }
+                )
+            }
+        }
+    }
+
+    private fun showSettings() {
+        val pane = container()
+        pane.addView(TextView(this).apply {
+            text = "Provedores configurados (ordem de prioridade)"
+            textSize = 18f
+        })
+        registry.all().forEachIndexed { index, provider ->
+            val row = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            row.addView(TextView(this).apply {
+                text = "${index + 1}. ${provider.name} — ${provider.model}" +
+                    if (provider.enabled) " • ativo" else " • pausado"
+            })
+            val buttons = LinearLayout(this)
+            buttons.addView(Button(this).apply {
+                text = "Editar"
+                setOnClickListener { showProviderForm(provider) }
+            })
+            buttons.addView(Button(this).apply {
+                text = "↑"
+                isEnabled = index > 0
+                setOnClickListener {
+                    val ids = registry.all().map { it.id }.toMutableList()
+                    java.util.Collections.swap(ids, index, index - 1)
+                    registry.reorder(ids)
+                    showSettings()
+                }
+            })
+            buttons.addView(Button(this).apply {
+                text = "Excluir"
+                setOnClickListener {
+                    AlertDialog.Builder(this@NativeAiActivity).setTitle("Excluir ${provider.name}?")
+                        .setMessage("A chave armazenada também será apagada.")
+                        .setNegativeButton("Cancelar", null)
+                        .setPositiveButton("Excluir") { _, _ ->
+                            vault.remove(provider.id)
+                            registry.delete(provider.id)
+                            showSettings()
+                        }.show()
+                }
+            })
+            row.addView(buttons)
+            pane.addView(row)
+        }
+        pane.addView(Button(this).apply {
+            text = "+ Adicionar API"
+            setOnClickListener { showProviderForm(null) }
+        })
+        AlertDialog.Builder(this).setTitle("Configurar IAs").setView(
+            ScrollView(this).apply { addView(pane) }
+        ).setPositiveButton("Fechar", null).show()
+    }
+
+    private fun showProviderForm(previous: AiProvider?) {
+        val form = container()
+        fun field(label: String, value: String): EditText {
+            form.addView(TextView(this).apply { text = label })
+            return EditText(this).apply { setText(value); setSingleLine(true); form.addView(this) }
+        }
+        form.addView(TextView(this).apply {
+            text = "Gemini usa o endpoint oficial. OpenAI-compatible aceita OpenAI, Groq e endpoints HTTPS compatíveis."
+        })
+        val type = Spinner(this)
+        type.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("Gemini", "OpenAI-compatible"))
+        type.setSelection(if (previous?.kind == "openai") 1 else 0)
+        form.addView(type)
+        val name = field("Nome", previous?.name ?: "Minha IA")
+        val model = field("Modelo (ID exato)", previous?.model ?: "gemini-2.5-flash")
+        val endpoint = field("Endpoint HTTPS", previous?.endpoint ?: "https://generativelanguage.googleapis.com/v1beta/models")
+        val key = field("Chave API (deixe vazia para manter a atual)", "").apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        val enabled = CheckBox(this).apply { text = "Ativo"; isChecked = previous?.enabled ?: true }
+        form.addView(enabled)
+        val dialog = AlertDialog.Builder(this).setTitle(if (previous == null) "Nova API" else "Editar API")
+            .setView(ScrollView(this).apply { addView(form) })
+            .setNegativeButton("Cancelar", null)
+            .setPositiveButton("Salvar", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val provider = AiProvider(
+                    previous?.id ?: UUID.randomUUID().toString().replace("-", ""),
+                    name.text.toString().trim(),
+                    if (type.selectedItemPosition == 0) "gemini" else "openai",
+                    model.text.toString().trim(),
+                    endpoint.text.toString().trim(),
+                    enabled.isChecked
+                )
+                try {
+                    if (previous == null && key.text.isBlank()) throw IllegalArgumentException("Informe a chave API.")
+                    AiProviderNetwork.validateEndpoint(provider)
+                    val newKey = key.text.toString().trim()
+                    if (newKey.isNotEmpty()) vault.save(provider.id, newKey)
+                    registry.save(provider)
+                    dialog.dismiss()
+                    Toast.makeText(this, "API salva no aparelho", Toast.LENGTH_SHORT).show()
+                    showSettings()
+                } catch (e: Exception) {
+                    Toast.makeText(this, e.message ?: "Erro ao salvar API", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+        dialog.show()
+    }
+}
