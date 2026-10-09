@@ -22,6 +22,7 @@ class NativeAiActivity : Activity() {
     private lateinit var question: EditText
     private lateinit var send: Button
     private val history = mutableListOf<Pair<String, String>>()
+    private var settingsDialog: AlertDialog? = null
 
     private fun container() = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
@@ -105,6 +106,7 @@ class NativeAiActivity : Activity() {
     }
 
     private fun showSettings() {
+        settingsDialog?.dismiss()
         val pane = container()
         pane.addView(TextView(this).apply {
             text = "Provedores configurados (ordem de prioridade)"
@@ -151,12 +153,14 @@ class NativeAiActivity : Activity() {
             text = "+ Adicionar API"
             setOnClickListener { showProviderForm(null) }
         })
-        AlertDialog.Builder(this).setTitle("Configurar IAs").setView(
+        settingsDialog = AlertDialog.Builder(this).setTitle("Configurar IAs").setView(
             ScrollView(this).apply { addView(pane) }
         ).setPositiveButton("Fechar", null).show()
     }
 
     private fun showProviderForm(previous: AiProvider?) {
+        settingsDialog?.dismiss()
+        settingsDialog = null
         val form = container()
         fun field(label: String, value: String): EditText {
             form.addView(TextView(this).apply { text = label })
@@ -166,12 +170,33 @@ class NativeAiActivity : Activity() {
             text = "Gemini usa o endpoint oficial. OpenAI-compatible aceita OpenAI, Groq e endpoints HTTPS compatíveis."
         })
         val type = Spinner(this)
-        type.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("Gemini", "OpenAI-compatible"))
-        type.setSelection(if (previous?.kind == "openai") 1 else 0)
+        type.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("Gemini", "Groq", "OpenAI", "Outro compatível"))
+        val existingChoice = when {
+            previous == null || previous.kind == "gemini" -> 0
+            previous.endpoint.contains("api.groq.com") -> 1
+            previous.endpoint.contains("api.openai.com") -> 2
+            else -> 3
+        }
+        type.setSelection(existingChoice)
         form.addView(type)
         val name = field("Nome", previous?.name ?: "Minha IA")
         val model = field("Modelo (ID exato)", previous?.model ?: "gemini-2.5-flash")
         val endpoint = field("Endpoint HTTPS", previous?.endpoint ?: "https://generativelanguage.googleapis.com/v1beta/models")
+        val presets = arrayOf(
+            "gemini-2.5-flash" to "https://generativelanguage.googleapis.com/v1beta/models",
+            "llama-3.3-70b-versatile" to "https://api.groq.com/openai/v1/chat/completions",
+            "gpt-4.1-mini" to "https://api.openai.com/v1/chat/completions"
+        )
+        type.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (previous == null && position < presets.size) {
+                    model.setText(presets[position].first)
+                    endpoint.setText(presets[position].second)
+                    name.setText(arrayOf("Gemini", "Groq", "OpenAI")[position])
+                }
+            }
+        }
         val key = field("Chave API (deixe vazia para manter a atual)", "").apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         }
