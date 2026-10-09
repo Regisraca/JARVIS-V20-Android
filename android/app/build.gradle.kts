@@ -3,6 +3,24 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-android { namespace = "com.jarvis.resident"; compileSdk = 35
-    defaultConfig { applicationId = "com.jarvis.resident"; minSdk = 26; targetSdk = 35; versionCode = 20; versionName = "20.0.0" }
+android {
+    namespace = "com.jarvis.resident"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "com.jarvis.resident"
+        minSdk = 26
+        targetSdk = 35
+        versionCode = 20
+        versionName = "20.0.0"
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
 }
