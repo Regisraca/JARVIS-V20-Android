@@ -3,6 +3,9 @@ package com.jarvis.resident
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
+import android.speech.RecognizerIntent
+import android.speech.tts.TextToSpeech
+import java.util.Locale
 import android.os.Bundle
 import android.text.InputType
 import android.view.View
@@ -23,6 +26,8 @@ class NativeAiActivity : Activity() {
     private lateinit var send: Button
     private val history = mutableListOf<Pair<String, String>>()
     private var settingsDialog: AlertDialog? = null
+    private var speaker: TextToSpeech? = null
+    private var voiceEnabled = true
 
     private fun container() = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
@@ -33,6 +38,9 @@ class NativeAiActivity : Activity() {
         super.onCreate(savedInstanceState)
         registry = AiProviderRegistry(this)
         vault = ProviderCredentialVault(this)
+        speaker = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) speaker?.language = Locale.forLanguageTag("pt-BR")
+        }
         root = container()
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         header.addView(Button(this).apply {
@@ -67,7 +75,34 @@ class NativeAiActivity : Activity() {
             text = "Enviar"
             setOnClickListener { sendMessage() }
         }
-        root.addView(send)
+        val controls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        controls.addView(send, LinearLayout.LayoutParams(0, -2, 2f))
+        controls.addView(Button(this).apply {
+            text = "🎤"
+            contentDescription = "Ditado por voz"
+            setOnClickListener {
+                try {
+                    startActivityForResult(
+                        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR"),
+                        REQUEST_SPEECH
+                    )
+                } catch (e: Exception) {
+                    Toast.makeText(this@NativeAiActivity, "Reconhecimento de voz indisponível", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }, LinearLayout.LayoutParams(0, -2, 1f))
+        controls.addView(Button(this).apply {
+            text = "🔊"
+            contentDescription = "Ativar ou silenciar voz"
+            setOnClickListener {
+                voiceEnabled = !voiceEnabled
+                text = if (voiceEnabled) "🔊" else "🔇"
+                if (!voiceEnabled) speaker?.stop()
+            }
+        }, LinearLayout.LayoutParams(0, -2, 1f))
+        root.addView(controls)
         setContentView(root)
         if (registry.all().isEmpty()) showSettings()
     }
@@ -92,6 +127,7 @@ class NativeAiActivity : Activity() {
                 answer.fold(
                     onSuccess = { result ->
                         history.add("assistant" to result.text)
+                        if (voiceEnabled) speaker?.speak(result.text, TextToSpeech.QUEUE_FLUSH, null, "jarvis-answer")
                         transcript.text = old + result.text +
                             "\n\n[Via ${result.provider} • ${result.model}" +
                             (if (result.attempted > 1) " • fallback após ${result.attempted - 1} falha(s)" else "") + "]"
@@ -118,7 +154,7 @@ class NativeAiActivity : Activity() {
                 text = "${index + 1}. ${provider.name} — ${provider.model}" +
                     if (provider.enabled) " • ativo" else " • pausado"
             })
-            val buttons = LinearLayout(this)
+            val buttons = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             buttons.addView(Button(this).apply {
                 text = "Editar"
                 setOnClickListener { showProviderForm(provider) }
@@ -187,6 +223,27 @@ class NativeAiActivity : Activity() {
         settingsDialog = AlertDialog.Builder(this).setTitle("Configurar IAs").setView(
             ScrollView(this).apply { addView(pane) }
         ).setPositiveButton("Fechar", null).show()
+    }
+
+    @Deprecated("Legacy Android speech recognition callback")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_SPEECH && resultCode == Activity.RESULT_OK) {
+            val spoken = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+            if (!spoken.isNullOrBlank()) question.setText(spoken)
+        }
+    }
+
+    override fun onDestroy() {
+        settingsDialog?.dismiss()
+        speaker?.stop()
+        speaker?.shutdown()
+        speaker = null
+        super.onDestroy()
+    }
+
+    companion object {
+        private const val REQUEST_SPEECH = 810
     }
 
     private fun showProviderForm(previous: AiProvider?) {
