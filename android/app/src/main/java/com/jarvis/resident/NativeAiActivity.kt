@@ -2,6 +2,7 @@ package com.jarvis.resident
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.view.View
@@ -42,8 +43,8 @@ class NativeAiActivity : Activity() {
             setOnClickListener { history.clear(); transcript.text = "Como posso ajudar?" }
         })
         header.addView(Button(this).apply {
-            text = "Voltar"
-            setOnClickListener { finish() }
+            text = "Interface web"
+            setOnClickListener { startActivity(Intent(this@NativeAiActivity, MainActivity::class.java)) }
         })
         root.addView(header)
 
