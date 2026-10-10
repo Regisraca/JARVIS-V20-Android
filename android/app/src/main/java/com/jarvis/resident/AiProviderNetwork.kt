@@ -5,7 +5,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
-import java.net.InetAddress
 import java.net.URL
 
 internal data class AiAnswer(val text: String, val provider: String, val model: String, val attempted: Int)
@@ -24,6 +23,7 @@ internal object AiProviderNetwork {
             !host.contains(":")) { "Endereço de API não permitido" }
         require(uri.fragment == null && uri.query == null) { "URL não pode conter consulta ou fragmento" }
         require(provider.endpoint.length <= 300) { "URL muito longa" }
+        require(uri.pathSegments.none { it == "." || it == ".." }) { "Caminho de API inválido" }
         if (provider.kind == "gemini") {
             require(host.equals("generativelanguage.googleapis.com", true)) {
                 "Gemini só pode usar o endpoint oficial"
