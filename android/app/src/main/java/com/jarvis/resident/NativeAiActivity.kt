@@ -315,6 +315,10 @@ class NativeAiActivity : Activity() {
                 )
                 try {
                     if (previous == null && key.text.isBlank()) throw IllegalArgumentException("Informe a chave API.")
+                    // Validate all metadata before persisting a credential, so an invalid
+                    // provider cannot leave an orphaned API key in encrypted storage.
+                    require(provider.name.isNotBlank() && provider.name.length <= 80) { "Nome inválido (máximo 80 caracteres)." }
+                    require(provider.model.isNotBlank() && provider.model.length <= 120) { "Modelo inválido (máximo 120 caracteres)." }
                     AiProviderNetwork.validateEndpoint(provider)
                     val newKey = key.text.toString().trim()
                     if (newKey.isNotEmpty()) vault.save(provider.id, newKey)
