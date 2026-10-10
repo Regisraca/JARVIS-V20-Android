@@ -1,19 +1,31 @@
-# J.A.R.V.I.S. Resident — Android shell (v20)
+# J.A.R.V.I.S. Resident — Android (desenvolvimento)
 
-Este módulo abre a interface Web do J.A.R.V.I.S. em uma WebView nativa e oferece uma bolha flutuante opcional.
+## Como testar a experiência nativa de IA
 
-## Antes de compilar
-1. Configure `android/app/src/main/res/values/strings.xml` com a URL HTTPS real do J.A.R.V.I.S.
-2. Abra a pasta `android/` no Android Studio (JDK e SDK Android instalados).
-3. Compile e instale o APK.
-4. Autorize microfone e sobreposição somente se quiser usar voz e bolha flutuante.
+1. Compile e instale o APK de desenvolvimento (JDK 17, Android SDK 35).
+2. Abra **J.A.R.V.I.S.**: a tela inicial agora é o chat Android nativo.
+3. Toque em **APIs** → **Adicionar API**.
+4. Escolha **Gemini** (endpoint `https://generativelanguage.googleapis.com/v1beta/models`) ou **OpenAI-compatible** (endpoint completo de chat, por exemplo `https://api.groq.com/openai/v1/chat/completions` ou `https://api.openai.com/v1/chat/completions`).
+5. Gemini, Groq e OpenAI já possuem presets de endpoint/modelo: normalmente basta selecionar o provedor e informar **sua própria chave API**. Para outros, informe endpoint/modelo compatíveis. O APK não inclui chaves nem promete uso gratuito.
+6. Adicione quantas APIs desejar. A ordem na lista determina prioridade; use **↑** para promover uma API, **Pausar** para desativar e **Testar** para fazer uma requisição real (que pode consumir créditos). Se a primeira falhar, o chat tenta a próxima habilitada.
+7. Use **Interface web** para abrir a interface visual anterior. Nessa interface, as APIs continuam sendo gerenciadas pelo backend hospedado, não pelo cofre Android.
 
-## Compatibilidade e segurança
-- A WebView permite navegação interna apenas para o mesmo host HTTPS configurado; links externos HTTPS, `mailto:` e `tel:` abrem fora do app.
-- A permissão de áudio só é concedida depois da permissão Android `RECORD_AUDIO`; outros recursos de mídia da WebView são recusados.
-- A página usa HTTPS. O modo de conteúdo misto em compatibilidade é necessário para o Phone Bridge local em `http://127.0.0.1:8787`; a política de rede permite HTTP apenas para `127.0.0.1` e mantém cleartext bloqueado para os demais hosts. Mantenha a URL remota em HTTPS e nunca exponha a porta da ponte na rede.
-- O Phone Bridge continua sendo o serviço Termux separado, com token local e lista fixa de ações. A bolha nativa não executa comandos de shell.
-- O nome de versão Android acompanha a linha V20; versão do protocolo da ponte permanece independente e não foi alterada.
+As credenciais são cifradas em repouso pelo Android Keystore (AES-GCM), não ficam no código do APK nem são expostas ao JavaScript do WebView. Android backup está desabilitado para evitar transportar dados cifrados sem a chave Keystore. A lista de provedores e endpoints é guardada separadamente, sem segredos.
 
-## Limites conhecidos
-A bolha reabre o J.A.R.V.I.S.; não é uma bolha interativa que execute ações sem abrir a interface. A comunicação com o Phone Bridge precisa ser validada em aparelho real com Termux e Termux:API configurados.
+## Estado e limites
+
+- O chat **nativo** usa requisições HTTPS diretamente aos provedores, com fallback e indicação da IA que respondeu. Isso exige conexão com a internet e uma chave válida.
+- Não foi adicionada integração das APIs pessoais ao chat **web/voz**. A interface web usa o backend existente.
+- A função **Interface web** continua carregando a URL HTTPS especificada em `app/src/main/res/values/strings.xml`. A UI remota precisa estar disponível.
+- A bolha flutuante e as ações avançadas de telefone da interface web continuam com suas limitações anteriores; o Phone Bridge Termux não foi removido. Comandos locais suportados na tela nativa não requerem Termux.
+- O chat nativo oferece ditado por voz (quando há um reconhecedor instalado) e leitura de respostas por TextToSpeech. Ainda não há modo de escuta contínua ou palavra de ativação. A nova tela executa um conjunto pequeno de comandos locais **explicitamente digitados ou ditados pelo usuário**: bateria, copiar texto, abrir configurações/Wi-Fi/Bluetooth e abrir destinos conhecidos (YouTube, Google, Maps, WhatsApp, Spotify). O modelo não pode executar comandos arbitrários nem enviar mensagens automaticamente.
+- Requisições aos provedores podem consumir créditos pagos.
+- Confirme os termos de segurança e uso de cada provedor antes de inserir uma chave.
+- Essa implementação ainda requer **build CI e teste real em Android**. Não declare o APK pronto para distribuição sem essa validação.
+
+## Segurança da WebView antiga
+
+- Só permite navegação interna HTTPS para o host configurado; outros links abrem fora do app.
+- Concede áudio somente após autorização de microfone.
+- Conteúdo misto é permitido por compatibilidade com a ponte Termux em `127.0.0.1:8787` na interface web anterior, não no chat nativo.
+- O código nativo não expõe as credenciais ao WebView.
