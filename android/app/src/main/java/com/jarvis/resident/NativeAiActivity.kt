@@ -140,7 +140,8 @@ class NativeAiActivity : Activity() {
                             (if (result.attempted > 1) " • fallback após ${result.attempted - 1} falha(s)" else "") + "]"
                     },
                     onFailure = { e ->
-                        // Failed turns must not become assistant context.
+                        // A failed request must not be sent as part of the next conversation.
+                        if (history.lastOrNull() == ("user" to text)) history.removeAt(history.lastIndex)
                         transcript.text = old + "Não foi possível responder: ${e.message}"
                     }
                 )
