@@ -72,8 +72,18 @@ internal object AiProviderNetwork {
                 // Never forward raw provider errors; they can include sensitive request details.
                 throw IOException("HTTP $status")
             }
-            val response = connection.inputStream.bufferedReader().use { it.readText() }
-            require(response.length <= 2_000_000) { "Resposta grande demais" }
+            // Limit the stream while reading: checking length only after readText() can exhaust memory.
+            val response = connection.inputStream.bufferedReader().use { reader ->
+                val buffer = CharArray(8192)
+                val output = StringBuilder()
+                while (true) {
+                    val count = reader.read(buffer)
+                    if (count == -1) break
+                    if (output.length + count > 2_000_000) throw IOException("Resposta grande demais")
+                    output.append(buffer, 0, count)
+                }
+                output.toString()
+            }
             val json = JSONObject(response)
             val text = if (gemini) {
                 val candidates = json.optJSONArray("candidates") ?: JSONArray()
